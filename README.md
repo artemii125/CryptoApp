@@ -14,14 +14,11 @@
 ## Установка
  *1. Скопируйте репозиторий:*
   ```
-  git clone https://github.com/artemii125/CryptoApp.git
+  git clone https://github.com/artemii125/CryptoApp
   ```
-  *2. Перейдите в директорию поекта:*
-  ```
-  cd 
-  ```
-  *3. Соберите и запустите проект:*
+ *2. Соберите и запустите проект:*
   ```
   sudo apt-get install libgmp-dev
   make && ./CryptoApp
   ```
+ 
