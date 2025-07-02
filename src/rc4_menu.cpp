@@ -1,0 +1,172 @@
+#include <iostream>
+#include <dlfcn.h>
+#include <limits>
+#include <string>
+using namespace std;
+
+enum class Rc4Action {
+    ENCRYPT = 1, 
+    DECRYPT = 2, 
+    BACK = 3 
+};
+enum class Rc4Source { 
+    TEXT = 1, 
+    FILE = 2, 
+    BACK = 3
+};
+
+void rc4Ciph() {
+    void* lib = dlopen("./librc4.so", RTLD_LAZY);
+    if (!lib) {
+        cerr << "Ошибка загрузки librc4.so: " << dlerror() << endl;
+        cout << "Нажмите Enter для продолжения...";
+        cin.ignore();
+        return;
+    }
+
+    typedef const char* (*EncryptTextFunc)(const char*, const char*);
+    typedef const char* (*DecryptTextFunc)(const char*, const char*);
+    typedef void (*EncryptFileFunc)(const char*, const char*, const char*);
+    typedef void (*DecryptFileFunc)(const char*, const char*, const char*);
+
+    EncryptTextFunc encryptText = (EncryptTextFunc)dlsym(lib, "rc4EncryptText");
+    DecryptTextFunc decryptText = (DecryptTextFunc)dlsym(lib, "rc4DecryptText");
+    EncryptFileFunc encryptFile = (EncryptFileFunc)dlsym(lib, "rc4EncryptFile");
+    DecryptFileFunc decryptFile = (DecryptFileFunc)dlsym(lib, "rc4DecryptFile");
+
+    if (!encryptText || !decryptText || !encryptFile || !decryptFile) {
+        cerr << "Ошибка загрузки функций из DLL: " << dlerror() << endl;
+        dlclose(lib);
+        cout << "Нажмите Enter для продолжения...";
+        cin.ignore();
+        return;
+    }
+
+    while (true) {
+        system("clear");
+        cout << "========= RC4 =========" << endl;
+        cout << "1 - Зашифровать" << endl;
+        cout << "2 - Расшифровать" << endl;
+        cout << "3 -  Назад" << endl;
+        cout << "Выбор: ";
+
+        int action;
+        if (!(cin >> action) || action < 1 || action > 3) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cout << "Ошибка: введите число от 1 до 3.\n";
+            cout << "Нажмите Enter для продолжения...";
+            cin.get();
+            continue; 
+        }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        
+        Rc4Action rcAction = static_cast<Rc4Action>(action);
+        if (rcAction == Rc4Action::BACK) break;
+
+        cout << "1 - С консоли" << endl;
+        cout << "2 - С файла" << endl;
+        cout << "3 - Назад" << endl;
+        cout << "Выбор: ";
+
+        int source;
+        if (!(cin >> source) || source < 1 || source > 3) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Ошибка: Введите число от 1 до 3!\n";
+                cout << "Нажмите Enter для продолжения...";
+                cin.get();
+                continue;
+        }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+
+        Rc4Source src = static_cast<Rc4Source>(source);
+        if (src == Rc4Source::BACK) continue;;
+
+        if (rcAction == Rc4Action::ENCRYPT && src == Rc4Source::TEXT) {
+            string text, keyFile;
+            cout << "Введите текст для шифрования: ";
+            getline(cin, text);
+            if (text.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+
+            cout << "Введите имя файла для сохранения ключа: ";
+            getline(cin, keyFile);
+            if (keyFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+
+            const char* encrypted = encryptText(text.c_str(), keyFile.c_str());
+            cout << "Зашифрованный текст:\n" << encrypted << endl;
+            cout << "Ключ сохранён в файл: " << keyFile << endl;
+            cout << "Нажмите Enter для продолжения..."; cin.get();
+        }
+        else if (rcAction == Rc4Action::DECRYPT && src == Rc4Source::TEXT) {
+            string hexText, keyFile;
+            cout << "Вставьте hex-строку: ";
+            getline(cin, hexText);
+            if (hexText.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+            cout << "Введите имя файла с ключом: ";
+            getline(cin, keyFile);
+            if (keyFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+
+            const char* decrypted = decryptText(hexText.c_str(), keyFile.c_str());
+            cout << "Расшифрованный текст: " << decrypted << endl;
+            cout << "Нажмите Enter для продолжения..."; cin.get();
+        }
+        else if (rcAction == Rc4Action::ENCRYPT && src == Rc4Source::FILE) {
+            string inputFile, outputFile, keyFile;
+            cout << "Файл для шифрования: "; 
+            getline(cin, inputFile);
+            if (inputFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+            cout << "Файл для сохранения: "; 
+            getline(cin, outputFile);
+            if (outputFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+            cout << "Файл ключа: "; 
+            getline(cin, keyFile);
+            encryptFile(inputFile.c_str(), outputFile.c_str(), keyFile.c_str());
+            cout << "Файл зашифрован. Нажмите Enter..."; cin.get();
+        }
+        else if (rcAction == Rc4Action::DECRYPT && src == Rc4Source::FILE) {
+            string inputFile, keyFile, outputFile;
+            cout << "Зашифрованный файл: "; 
+            getline(cin, inputFile);
+            if (inputFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+            cout << "Файл ключа: "; 
+            getline(cin, keyFile);
+            if (keyFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+            cout << "Файл для сохранения: "; 
+            getline(cin, outputFile);
+            if (outputFile.empty()) {
+                cout << "Пустой ввод. Отмена.\n";
+                continue;
+            }
+            decryptFile(inputFile.c_str(), keyFile.c_str(), outputFile.c_str());
+            cout << "Файл расшифрован. Нажмите Enter..."; cin.get();
+        }
+    }
+
+    dlclose(lib);
+}
